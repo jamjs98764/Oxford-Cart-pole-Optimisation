@@ -8,6 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math
 import copy
+import HMIN
 # x: Rows are samples, samples are vectors
 
 def vecmetric_maxnorm(x, y, pars = [1]):
@@ -73,7 +74,6 @@ def rem_sample_points_(sample, inds):
     sample.outp = sample.outp[indkeep]    
     return None
 
-# TODO Julia code doesnt work
 def sort1dsample_(sample):
     # Sorts according to inputs, assuming inputs are 1D
     a = sample.inp
@@ -102,9 +102,21 @@ def append_sample_(sample, x, f, e):
         sample.errbnd = e
         
     else:
-        sample.inp = np.append(sample.inp, x, axis = 0)
-        sample.outp = np.append(sample.outp, f, axis = 0)
+        if (sample.inp.size == 0):
+            sample.inp = np.array([x])
+        else:
+            sample.inp = np.append(sample.inp, x, axis = 0)
+            print(sample.inp)
+        if (sample.outp.size == 0):
+            sample.outp = np.array([f])
+        else:
+            sample.outp = np.append(sample.outp, f, axis = 0)    
+        """
+        
+        
+        """
         sample.errbnd = e
+        
 
 
 ##### HoelParEst 
@@ -135,7 +147,7 @@ def append_sample_N_update_L_gen_(hpa, x, f, e):
   # however when metrics are defined this way (such as vecmetric_... ) .. often
   #best to use append_sample_N_update_L!
    #update L:
-    if np.countnonzero(hpa.D.inp) == 0 : # if hpa.D.inp is empty
+    if np.count_nonzero(hpa.D.inp) == 0 : # if hpa.D.inp is empty
         Lcross = 0
     else:
         Lcross = emp_cross_L_between_samples(hpa.D, x, f, hpa.fct_metric_inp, hpa.fct_metric_outp, hpa.p, hpa.alpha)
@@ -202,15 +214,15 @@ def KI_predict(hpa, x):
     pred = np.ones(n)
     err = math.inf
     
-    if np.countnonzero(sample_s) == 0:
+    if np.count_nonzero(sample_s) == 0:
         return None
     else:
         # go through test input by test input
         for iter in range(n):
             X = np.array([x[iter] for col in range(ns)]) # now ith col fo x stacked next to itself for each tex
-            m_rowvec = hpa.L * (hpa.fct_metric_inp(X, sample_s, hpa.pars_metric_inp)**hpa.p) # all the distances of inp in one row vec
-            floorpred[iter] = max(sample_f - epsilon - m_rowvec)
-            ceilpred[iter] = min(sample_f + epsilon + m_rowvec)
+            m_rowvec = hpa.L * (hpa.fct_metric_inp(X, sample_s, hpa.pars_metric_inp)**hpa.p) # all the distances of inp in one row vec            
+            floorpred[iter] = np.amax(sample_f - epsilon - m_rowvec)
+            ceilpred[iter] = np.amin(sample_f + epsilon + m_rowvec)
             pred[iter] = (ceilpred[iter]+floorpred[iter])/2
         err = (ceilpred - floorpred)/2
     
@@ -272,7 +284,7 @@ def KI_append_sample_N_update_L_v2_(hpa, x, f, e):
     n = x.shape[0] # number of samples
     
     # now see if we need to update Hoelder const L
-    if np.countnonzero(hpa.D.inp) == 0:
+    if np.count_nonzero(hpa.D.inp) == 0:
         append_sample_(hpa.D, x[0], f[0], e)
         
         if n > 1:
@@ -291,7 +303,7 @@ def KI_append_sample_N_update_L_v2_(hpa, x, f, e):
             inds = m_rowvec > 0
             mr = m_rowvec[inds]
             
-            if np.countnonzero(mr) == 0:
+            if np.count_nonzero(mr) == 0:
                 F = np.array([f[i] for col in range(ns)])
                 diffs_f = hpa.fct_metric_outp(F, hpa.D.outp, hpa.pars_metric_outp) - hpa.alpha
                 hpa.L = max(hpa.L, max(diffs_f[inds]/(mr**hpa.p)))
@@ -304,17 +316,19 @@ def KI_append_sample_N_update_L_v2_(hpa, x, f, e):
 def KI_append_sample_N_update_L_(hpa, x, f, e):
     n = x.shape[0] # number of samples
     
-    if np.countnonzero(hpa.D.inp) == 0:
+    if np.count_nonzero(hpa.D.inp) == 0: # is hpa.D.inp empty
         append_sample_(hpa.D, x[0], f[0], e)
-        
         if n > 1:
             KI_append_sample_N_update_L_(hpa, x[1:], f[1:], e)
+            # Not appending properly
         
         return None
 
     else:
+        print("AAAA")
         sample_s_old = hpa.D.inp
         sample_f_old = hpa.D.outp
+        print(hpa.D.inp.shape)
 
         #go through test input by test input:
         #compute empirical const est:
@@ -325,17 +339,23 @@ def KI_append_sample_N_update_L_(hpa, x, f, e):
             X = np.array([x[i] for col in range(ns)])
             m_rowvec=hpa.fct_metric_inp(X,sample_s_old,hpa.pars_metric_inp)
             inds = m_rowvec > 0
+            #print("ns")
+            #print(ns)
             mr = m_rowvec[inds]
             
-            if np.countnonzero(mr) == 0:
+            if np.count_nonzero(mr) == 0:
                 F = np.array([f[i] for col in range(ns)])
                 diffs_f = hpa.fct_metric_outp(F, hpa.D.outp, hpa.pars_metric_outp) - hpa.alpha
                 hpa.L = max(hpa.L, max(diffs_f[inds]/(mr**hpa.p)))
+                print('updating L')
                 sample_s_old = np.concatenate([sample_s_old, x[i]], axis = 0)
                 sample_s_old = np.concatenate([sample_f_old, f[i]], axis = 0)
         
-        append_sample_(hpa.D, x, f, e)
-        return None
+    print('append_sample_')
+    append_sample_(hpa.D, x, f, e)
+    print('shape')
+    print(hpa.D.inp.shape)
+    return None
     
 def KI_predict_Real2Real(hpa, t):
     predf = KI_predict(hpa,t)[0]
@@ -350,7 +370,7 @@ def KI_append_sample_N_update_LNp_(hpa, x, f, e):
     sample_s_old =hpa.D.inp; #contains the old sample
     n = x.shape[0]
     
-    if np.countnonzero(sample_s_old) == 0:
+    if np.count_nonzero(sample_s_old) == 0:
         append_sample_(hpa.D, x[0], f[0], e)
     
         if n > 1:
@@ -382,7 +402,7 @@ def KI_append_sample_N_update_LNp_(hpa, x, f, e):
                 if len(df2) > 0:
                     L = max(L, max(df2/(dx_rowvec[~inds2]**p)))
                 else:
-                    L = max(l, max(df_rowvec[inds]/(dx_rowvec[inds]**p)))
+                    L = max(L, max(df_rowvec[inds]/(dx_rowvec[inds]**p)))
                 
                 sample_s_old = np.concatenate([sample_s_old, x[i]], axis = 0)
                 sample_s_old = np.concatenate([sample_f_old, f[i]], axis = 0)
@@ -431,7 +451,7 @@ def KI_optimise_pars_metric_inp_testdat_VS_(obj, parmin, parmax, testdata4paropt
                                             testdata4partopt_f = np.array([]), L = -999.123, 
                                             maxevals = 10000, errthresh = 0.05):
     # optimise metric par on separate test data
-    if np.countnonzero(testdata4paropt_s) == 0:
+    if np.count_nonzero(testdata4paropt_s) == 0:
         testdata4paropt_s = obj.D.inp
         testdata4paropt_f = obj.D.outp
         
@@ -456,7 +476,7 @@ def KI_optimise_pars_metric_inp_testdat_VS_(obj, parmin, parmax, testdata4paropt
 def KI_optimise_pars_metric_inp_testdat_SHATTER_(obj, parmin, parmax, testdata4paropt_s = np.array([]), 
                                                  testdata4partopt_f = np.array([]), L = -999.123,
                                                 maxevals = 10000, errthresh = 0.05):
-    if np.countnonzero(testdata4paropt_s) == 0:
+    if np.count_nonzero(testdata4paropt_s) == 0:
         testdata4paropt_s = obj.D.inp
         testdata4paropt_f =obj.D.outp
     
@@ -477,7 +497,7 @@ def KI_optimise_pars_metric_inp_testdat_SHATTER_(obj, parmin, parmax, testdata4p
 def KI_optimise_pars_metric_inp_testdat_(obj, parmin, parmax, testdata4paropt_s = np.array([]), 
                                                  testdata4partopt_f = np.array([]), L = -999.123,
                                                 maxevals = 10000, errthresh = 0.05):
-    if np.countnonzero(testdata4paropt_s) == 0:
+    if np.count_nonzero(testdata4paropt_s) == 0:
         testdata4paropt_s = obj.D.inp
         testdata4paropt_f =obj.D.outp
     
@@ -498,7 +518,7 @@ def KI_optimise_pars_metric_inp_testdat_(obj, parmin, parmax, testdata4paropt_s 
 """
 def KI_optimise_pars_metric_inp_testdat_Optimjl_(obj, parmin, parmax, testdata4paropt_s = np.array([]),
                                                  testdata4paropt_f= np.array([]), maxevals = 10000):
-    if np.countnonzero(testdata4paropt_s) == 0:
+    if np.count_nonzero(testdata4paropt_s) == 0:
         testdata4paropt_s = obj.D.inp
         testdata4paropt_f =obj.D.outp
     
@@ -522,7 +542,7 @@ def KI_optimise_pars_metric_inp_testdat_Optimjl_(obj, parmin, parmax, testdata4p
 def KI_optimise_pars_metric_inp_testdat_Shubert_(obj, parmin, parmax,testdata4paropt_s= np.array([]), 
                                                  testdata4paropt_f = np.array([]),L=100.,
                                                  maxevals = 10000, errthresh = 0.05):
-    if np.countnonzero(testdata4paropt_s) == 0:
+    if np.count_nonzero(testdata4paropt_s) == 0:
         testdata4paropt_s = obj.D.inp
         testdata4paropt_f = obj.D.outp
     
@@ -540,7 +560,7 @@ def KI_optimise_pars_metric_inp_testdat_Shubert_(obj, parmin, parmax,testdata4pa
 
 def KI_optimise_pars_metric_inp_testdat_old_(obj, parmin, parmax, testdata4paropt_s= np.array([]),
                                          testdata4paropt_f=np.array([]),L=-999.123,maxevals=10e4):
-    if np.countnonzero(testdata4paropt_s) == 0:
+    if np.count_nonzero(testdata4paropt_s) == 0:
         testdata4paropt_s = obj.D.inp
         testdata4paropt_f = obj.D.outp
     
@@ -646,7 +666,7 @@ def density_pareto(x, pars):
     # nu = shape parameter (nu = 0: uninformative)
     m = pars[0]
     nu = pars[1]
-    p = np/zeros(len(x))
+    p = np.zeros(len(x))
     for i in range(len(x)):
         xi = x[i]
         if xi >= m:
@@ -656,7 +676,7 @@ def density_pareto(x, pars):
     
 
 class HoelParEst_Bayes():
-    def __init__(self, pars_density, p = 1., D = sample(np.array([0,0], np.array([0,0], 0.))), 
+    def __init__(self, pars_density, p = 1., D = sample(np.array([]), np.array([]), 0.), 
                  fct_metric_inp = vecmetric_2norm, fct_metric_outp = vecmetric_2norm, 
                  alpha = 0., pars_metric_inp = np.array([1.]), pars_metric_outp = np.array([1.])):
         self.pars_density = pars_density
@@ -671,7 +691,7 @@ class HoelParEst_Bayes():
 
 def append_sample_N_update_L_belief_pareto_(hpa, x, f, e): 
     # == probably want to use this over append_sample_N_update_L_gen!
-    if np.countnonzero(hpa.D.inp) == 0:
+    if np.count_nonzero(hpa.D.inp) == 0:
         Lcross = 0
     else:
         Lcross = emp_cross_L_between_samples2(hpa.D.inp,hpa.D.outp,x,f,hpa.fct_metric_inp,hpa.fct_metric_outp,
@@ -758,7 +778,6 @@ def append_sample_N_update_L_belief_pareto_(hpa, x, f, e):
     
         
 
-    
     
     
         

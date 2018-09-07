@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Created on Tue Sep  4 16:26:21 2018
 
@@ -14,7 +13,6 @@ import HMIN
 def vecmetric_maxnorm(x, y, pars = [1]):
     # TODO: overloading case where only one sample
     return np.amax(abs(x-y), axis = 1)
-
 
 def vecmetric_maxnorm_ARD(x, y, pars):
     # x: Rows are samples, samples are vectors
@@ -45,10 +43,6 @@ class sample():
         self.outp = outp
         self.errbnd = errbnd
 
-inp = np.array([[1,2],[3,4],[5,6]]) # inner array = vector of sample point, outer array = different samples
-outp = np.array([[1,2],[3,4],[5,6]])
-errbnd = 0.1
-sample1 = sample(inp, outp, errbnd)
     
 # To handle different forms of sample, including default errbnd
 
@@ -103,20 +97,20 @@ def append_sample_(sample, x, f, e):
         
     else:
         if (sample.inp.size == 0):
-            sample.inp = np.array([x])
+            sample.inp = np.array(x)
         else:
-            sample.inp = np.append(sample.inp, x, axis = 0)
-            print(sample.inp)
+            sample.inp = np.vstack((sample.inp, x))
+            
         if (sample.outp.size == 0):
-            sample.outp = np.array([f])
+            sample.outp = np.array(f)
         else:
-            sample.outp = np.append(sample.outp, f, axis = 0)    
+            sample.outp = np.vstack((sample.outp, f))
         """
         
         
         """
         sample.errbnd = e
-        
+
 
 
 ##### HoelParEst 
@@ -124,13 +118,13 @@ def append_sample_(sample, x, f, e):
 class HoelParEst():
     def __init__(self, L = 0., p = 1., D = sample(np.array([[0,0]]), np.array([[0,0]]), 0), 
                  fct_metric_inp = vecmetric_2norm, fct_metric_outp = vecmetric_2norm, 
-                 alpha = 0, pars_metric_inp = np.array([1]), pars_metric_outp = np.array([1])):
+                 hestthresh = 0., pars_metric_inp = np.array([1]), pars_metric_outp = np.array([1])):
         self.L= L
         self.p = p
         self.D = D
         self.fct_metric_inp = fct_metric_inp
         self.fct_metric_outp = fct_metric_outp
-        self.alpha = alpha
+        self.hestthresh = hestthresh 
         self.pars_metric_inp = pars_metric_inp
         self.pars_metric_outp = pars_metric_outp
     
@@ -221,6 +215,8 @@ def KI_predict(hpa, x):
         for iter in range(n):
             X = np.array([x[iter] for col in range(ns)]) # now ith col fo x stacked next to itself for each tex
             m_rowvec = hpa.L * (hpa.fct_metric_inp(X, sample_s, hpa.pars_metric_inp)**hpa.p) # all the distances of inp in one row vec            
+            sample_f = np.squeeze(sample_f)
+
             floorpred[iter] = np.amax(sample_f - epsilon - m_rowvec)
             ceilpred[iter] = np.amin(sample_f + epsilon + m_rowvec)
             pred[iter] = (ceilpred[iter]+floorpred[iter])/2
@@ -312,23 +308,24 @@ def KI_append_sample_N_update_L_v2_(hpa, x, f, e):
                     append_sample_(hpa.D, x[i], f[i][0], e)
         
         return None
-    
+"""
+OLD
+
 def KI_append_sample_N_update_L_(hpa, x, f, e):
     n = x.shape[0] # number of samples
     
     if np.count_nonzero(hpa.D.inp) == 0: # is hpa.D.inp empty
-        append_sample_(hpa.D, x[0], f[0], e)
+        #append_sample_(hpa.D, x[0], f[0], e)
+        append_sample_(hpa.D, x, f, e)
         if n > 1:
-            KI_append_sample_N_update_L_(hpa, x[1:], f[1:], e)
-            # Not appending properly
-        
+            KI_append_sample_N_update_L_(hpa, x, f, e)
+                  
         return None
 
     else:
-        print("AAAA")
+        
         sample_s_old = hpa.D.inp
         sample_f_old = hpa.D.outp
-        print(hpa.D.inp.shape)
 
         #go through test input by test input:
         #compute empirical const est:
@@ -342,21 +339,67 @@ def KI_append_sample_N_update_L_(hpa, x, f, e):
             #print("ns")
             #print(ns)
             mr = m_rowvec[inds]
-            
-            if np.count_nonzero(mr) == 0:
+            print('m_rowvec')
+        
+            if np.count_nonzero(mr) != 0:
                 F = np.array([f[i] for col in range(ns)])
                 diffs_f = hpa.fct_metric_outp(F, hpa.D.outp, hpa.pars_metric_outp) - hpa.alpha
                 hpa.L = max(hpa.L, max(diffs_f[inds]/(mr**hpa.p)))
                 print('updating L')
-                sample_s_old = np.concatenate([sample_s_old, x[i]], axis = 0)
-                sample_s_old = np.concatenate([sample_f_old, f[i]], axis = 0)
-        
-    print('append_sample_')
-    append_sample_(hpa.D, x, f, e)
-    print('shape')
-    print(hpa.D.inp.shape)
+                print(sample_s_old)
+                print(x[i])
+                #sample_s_old = np.concatenate([sample_s_old, x[i]], axis = 0)
+                #sample_f_old = np.concatenate([sample_f_old, f[i]], axis = 0)
+                sample_s_old = np.vstack((sample_f_old, f[i]))
+                sample_f_old = np.vstack((sample_f_old, f[i]))
+    # append_sample_(hpa.D, x, f, e)
+
     return None
+"""
+
+
+def KI_append_sample_N_update_L_(hpa, x, f, e):
+    n = x.shape[0] # number of samples
     
+    if np.count_nonzero(hpa.D.inp) == 0: # is hpa.D.inp empty
+        append_sample_(hpa.D, x[0], f[0], e)
+        if n > 1:
+            KI_append_sample_N_update_L_(hpa, x[1:], f[1:], e)
+                  
+        return None
+
+    else:
+        
+        sample_s_old = hpa.D.inp
+        sample_f_old = hpa.D.outp
+        
+        #go through test input by test input:
+        #compute empirical const est:
+        for i in range(n):
+            #now ith col of x stacked on next to itself for each
+            #tex:
+            ns = sample_f_old.shape[0] # ns = number of samples in old data
+            X = np.array([x[i] for col in range(ns)])
+            m_rowvec = hpa.fct_metric_inp(X,sample_s_old,hpa.pars_metric_inp)
+            inds = m_rowvec != 0
+            
+            mr = m_rowvec[inds]
+
+            if np.count_nonzero(mr) != 0:
+                F = np.array([f[i] for col in range(ns)])
+                diffs_f = hpa.fct_metric_outp(F, sample_f_old, hpa.pars_metric_outp) - hpa.hestthresh
+
+                hpa.L = max(hpa.L, max(diffs_f[inds]/(mr**hpa.p)))
+
+                #print("L " + str(hpa.L))
+
+                sample_s_old = np.vstack((sample_s_old, x[i]))
+                sample_f_old = np.vstack((sample_f_old, f[i]))
+    append_sample_(hpa.D, x, f, e)
+
+    return None
+
+
 def KI_predict_Real2Real(hpa, t):
     predf = KI_predict(hpa,t)[0]
     return predf[0]
@@ -371,7 +414,7 @@ def KI_append_sample_N_update_LNp_(hpa, x, f, e):
     n = x.shape[0]
     
     if np.count_nonzero(sample_s_old) == 0:
-        append_sample_(hpa.D, x[0], f[0], e)
+        append_sample_(hpa.D, x, f, e)
     
         if n > 1:
             KI_append_sample_N_update_L_(hpa, x[1:], f[1:], e)

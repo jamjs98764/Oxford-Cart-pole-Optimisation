@@ -16,12 +16,12 @@ import tictoc
 
 outputdim =1 #set to 1 .. can be set to different vals if data has multiple output dimensions
 L=1. #should be set to 1
-epsilon =0.#assumed obs noise
+epsilon = 0.5 #assumed obs noise
 
-hoelexp = .7
+hoelexp = 0.7
 #d = 1 #dimensionality of the input space
 par_init_guess = np.array([1.])
-maxevals = 4000#max. number of evaluations in parameter training
+maxevals = 4000 #max. number of evaluations in parameter training
 Lmin = 0.
 Lmax = 10.
 
@@ -44,7 +44,6 @@ std_err_hist =  np.zeros([numtestruns,numlearners])
 mean_test_err_hist =  np.zeros([numtestruns,numlearners])
 median_test_err_hist =  np.zeros([numtestruns,numlearners])
 median_err_hist = np.zeros([numtestruns,numlearners])
-
 
 tex_set_size  = 500
 
@@ -72,7 +71,7 @@ def fun(x):
 #fun = x -> sin(x)+2
 
 def fun_noise(x, epsilon):
-    output = fun(x) -epsilon + 2 *epsilon *np.random.rand(1, x.shape[0])
+    output = fun(x) - epsilon + 2 *epsilon *np.random.rand(1, x.shape[0])
     return output
 
 global outp_tex_set 
@@ -125,7 +124,7 @@ print("Test set size: " + str(test_set_size))
 
 print("Input space dim.: " + str(d))
 
-print("mean fvalues (test set): " + str(np.mean(outp_test_set,axis=0))) # TODO: check whether correct axis
+print("Mean fvalues (test set): " + str(np.mean(outp_test_set,axis=0))) # TODO: check whether correct axis
 print("std fvalues  (test set): " + str(np.std(outp_test_set,0))) # TODO: check whether correct axis
 
 
@@ -156,7 +155,7 @@ std_err = []
 # ------------ LACKI -------------------
 
 emptysamp = HPA.sample(np.array([]),np.array([]),0.)
-hestthresh_LACKI = 0.
+hestthresh_LACKI = 2*epsilon
 LACKI = HPA.HoelParEst(L, hoelexp, emptysamp, HPA.vecmetric_maxnorm, HPA.vecmetric_2norm,
                        hestthresh_LACKI, par_init_guess, np.array([1.]))
 print("Training LACKI...")
@@ -209,7 +208,8 @@ mean_test_err = np.array([mean_test_err, mean_test_err_LACKI])
 
 
 # ------------ LACKI2 with noise-------------------
-hestthresh_LACKI2 = epsilon
+
+hestthresh_LACKI2 = epsilon*2
 emptysamp = HPA.sample(np.array([]),np.array([]),0.)
 LACKI2 = HPA.HoelParEst(L, hoelexp, emptysamp, HPA.vecmetric_maxnorm, HPA.vecmetric_2norm,
                         hestthresh_LACKI2, par_init_guess, np.array([1.]))
@@ -262,54 +262,44 @@ mean_err = np.array([mean_err, mean_err_LACKI2])
 mean_test_err = np.array([mean_test_err, mean_test_err_LACKI2])
 
 # ===== plotte ====
-"""
+
 x = s_test
 x = x # TODO check whether need traspose
 fx = fx
 predf_LACKI = predf_LACKI
 predf_LACKI2 = predf_LACKI2
 
-# predf_gpopt = predf_gpopt'
-#   predf_gpopt_nonoise = predf_gpoptnonoise'
-# predf_POKI_Optimjl = predf_POKI_Optimjl'
-# predf_linmod = predf_linmod'
+
 s_tex = s_tex
 f_tex = f_tex
 f_test = f_test
 
 
+plt.subplot(121)
+
+plt.plot(x,f_test,"-", color="cyan",alpha =.2, label = 'noisy test function')
+plt.plot(x, predf_LACKI,"-",color="black",alpha =.4,linewidth=2, label = 'prediction')
+plt.plot(x,fx,"--", color="darkblue",alpha =.99,linewidth=2, label = 'ground truth')
+
+
+plt.plot(x,floorpred_LACKI,"-.", color="silver",alpha=.9,linewidth=1, label = 'floor')
+plt.plot(x,ceilpred_LACKI,":", color="silver",alpha=.9,linewidth=1, label = 'ceiling')
+plt.legend(loc=0)
+plt.plot(s_tex, f_tex,".", color="blue",alpha=.9) #TODO what is f_tex
+plt.plot
+plt.title("LACKI 1")
 
 plt.axis("tight")
+plt.legend(loc=2)
 
-plt.title("(2)")
+plt.subplot(122)
 
-plt.subplot(1,2,1)
-plt.figure(figsize=(20,10))
-plt.plot(np.transpose(x),f_test,"-", color="cyan",alpha =.2, label = 'noisy test function')
-plt.plot(np.transpose(x)[0], predf_LACKI,"-",color="black",alpha =.4,linewidth=2, label = 'prediction')
-plt.plot(np.transpose(x)[0],fx,"--", color="darkblue",alpha =.99,linewidth=2, label = 'ground truth')
+plt.plot(x, f_test,"-", color="cyan",alpha =.2, label = 'noisy test function')
+plt.plot(x,predf_LACKI2, color="black",alpha =.4,linewidth=2, label = 'prediction')
+plt.plot(x,fx,"--", color="darkblue",alpha =.9,linewidth =2, label = 'ground truth')
 
-
-plt.plot(np.transpose(x)[0],floorpred_LACKI,"-.", color="silver",alpha=.9,linewidth=1, label = 'floor')
-plt.plot(np.transpose(x)[0],ceilpred_LACKI,":", color="silver",alpha=.9,linewidth=1, label = 'ceiling')
-plt.plot(np.transpose(s_tex),f_tex,".", color="blue",alpha=.9, label = 'f_tex?') #TODO what is f_tex
-plt.title("LACKI 1")
-# plt.legend(loc=2)
-
-
-
-plt.subplot(1,2,2)
-
-plt.plot(np.transpose(x),f_test,"-", color="cyan",alpha =.2)
-plt.plot(np.transpose(x)[0],predf_LACKI2, color="black",alpha =.4,linewidth=2)
-plt.plot(np.transpose(x)[0],fx,"--", color="darkblue",alpha =.9,linewidth =2)
-
-plt.plot(np.transpose(s_tex),f_tex,".", color="blue",alpha=.9)
-plt.plot(np.transpose(x)[0],floorpred_LACKI2,"-.", color="silver",alpha=.9,linewidth=2)
-plt.plot(np.transpose(x)[0],ceilpred_LACKI2,":", color="silver",alpha=.9,linewidth=2)
+plt.plot(s_tex,f_tex,".", color="blue",alpha=.9)
+plt.plot(x,floorpred_LACKI2,"-.", color="silver",alpha=.9,linewidth=2, label = 'floor')
+plt.plot(x,ceilpred_LACKI2,":", color="silver",alpha=.9,linewidth=2, label = 'ceiling')
+plt.legend(loc=0)
 plt.title("LACKI 2")
-"""
-
-
-
-

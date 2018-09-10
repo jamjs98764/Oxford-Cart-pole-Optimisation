@@ -470,7 +470,7 @@ def KI_fct_loss_pars_metric_inp_testdat(obj, normpar, testdata4paropt_s, testdat
     pars_metric_inp_backup = obj.pars_metric_inp
     obj.pars_metric_inp = normpar
     loss = abs(KI_predict(obj, testdata4paropt_s)[0] - testdata4paropt_f) # mean across all samples for each individual dimension
-    mean_loss = np.mean(loss, axis=1)
+    mean_loss = np.mean(loss)
     obj.pars_metric_inp = pars_metric_inp_backup
     return mean_loss
 
@@ -491,7 +491,7 @@ def plot_KI_fct_loss_pars_metric_inp_testdat(obj, parmin, parmax, testdata4parop
 
 
 def KI_optimise_pars_metric_inp_testdat_VS_(obj, parmin, parmax, testdata4paropt_s = np.array([]), 
-                                            testdata4partopt_f = np.array([]), L = -999.123, 
+                                            testdata4paropt_f = np.array([]), L = -999.123, 
                                             maxevals = 10000, errthresh = 0.05):
     # optimise metric par on separate test data
     if np.count_nonzero(testdata4paropt_s) == 0:
@@ -500,14 +500,14 @@ def KI_optimise_pars_metric_inp_testdat_VS_(obj, parmin, parmax, testdata4paropt
         
     if L == -999.123:
         L = obj.L
-    
-    def fct(par):
+
+    def fct(par, obj = obj, testdata4paropt_s = testdata4paropt_s, testdata4paropt_f = testdata4paropt_f):
         return KI_fct_loss_pars_metric_inp_testdat(obj,par,testdata4paropt_s,testdata4paropt_f)
-    # TODO: this package!
-    optobj = HMIN_VS.HMINVSTOR(parmin, parmax, fct, L)
-    # opobj - HMIN.HMIN_multidim(parmin, parmax, fct, L)
     
-    argmin, m, i, counter = HMIN_VS.minimiseUntilErrthresh_(optobj, errthresh, maxevals)
+    # optobj = HMIN_VS.HMINVSTOR(parmin, parmax, fct, L)
+    optobj = HMIN.HMIN_multidim(parmin, parmax, fct, L)
+    
+    argmin, m, i, counter = HMIN.minimiseUntilErrthresh_(optobj, errthresh, maxevals)
     #theta = fminbnd(@obj.fct_normparloss,thetamin,thetamax);
     #theta = fminunc(@obj.fct_normparloss,abs(thetamax-thetamin)/2);
     obj.pars_metric_inp = argmin
@@ -517,7 +517,7 @@ def KI_optimise_pars_metric_inp_testdat_VS_(obj, parmin, parmax, testdata4paropt
 
 
 def KI_optimise_pars_metric_inp_testdat_SHATTER_(obj, parmin, parmax, testdata4paropt_s = np.array([]), 
-                                                 testdata4partopt_f = np.array([]), L = -999.123,
+                                                 testdata4paropt_f = np.array([]), L = -999.123,
                                                 maxevals = 10000, errthresh = 0.05):
     if np.count_nonzero(testdata4paropt_s) == 0:
         testdata4paropt_s = obj.D.inp
@@ -526,19 +526,19 @@ def KI_optimise_pars_metric_inp_testdat_SHATTER_(obj, parmin, parmax, testdata4p
     if L == -999.123:
         L = obj.L
     
-    def fct(par):
+    def fct(par, obj = obj, testdata4paropt_s = testdata4paropt_s, testdata4paropt_f = testdata4paropt_f):
         return KI_fct_loss_pars_metric_inp_testdat(obj, par, testdata4paropt_s,testdata4paropt_f)[0]
     # TODO: this package!
-    optobj = HMIN_VS_SHATTER.HMIN_SHATTER(parmin, parmax, fct, L)
+    optobj = HMIN.HMIN_SHATTER(parmin, parmax, fct, L)
     # optobj = HMIN.HMIN_multidim(parmin,parmax,fct,L)
-    argmin,m,i,counter = HMIN_VS_SHATTER.minimiseUntilErrthresh_(optobj,errthresh,maxevals)
+    argmin,m,i,counter = HMIN.minimiseUntilErrthresh_(optobj,errthresh,maxevals)
     obj.pars_metric_inp = argmin
     print("KI_optimise: number of iterations for parameter optimisation: "+ str(counter))
     return None
 
 
 def KI_optimise_pars_metric_inp_testdat_(obj, parmin, parmax, testdata4paropt_s = np.array([]), 
-                                                 testdata4partopt_f = np.array([]), L = -999.123,
+                                                 testdata4paropt_f = np.array([]), L = -999.123,
                                                 maxevals = 10000, errthresh = 0.05):
     if np.count_nonzero(testdata4paropt_s) == 0:
         testdata4paropt_s = obj.D.inp
@@ -547,7 +547,7 @@ def KI_optimise_pars_metric_inp_testdat_(obj, parmin, parmax, testdata4paropt_s 
     if L == -999.123:
         L = obj.L
 
-    def fct(par):
+    def fct(par, obj = obj, testdata4paropt_s = testdata4paropt_s, testdata4paropt_f = testdata4paropt_f):
         return KI_fct_loss_pars_metric_inp_testdat(obj, par, testdata4paropt_s,testdata4paropt_f)
 
     optobj = HMIN.HMIN_multidim(parmin,parmax,fct,L)
@@ -590,7 +590,7 @@ def KI_optimise_pars_metric_inp_testdat_Shubert_(obj, parmin, parmax,testdata4pa
         testdata4paropt_f = obj.D.outp
     
     if len(parmin) == 1:
-        def fct(par):
+        def fct(par, obj = obj, testdata4paropt_s = testdata4paropt_s, testdata4paropt_f = testdata4paropt_f):
             return KI_fct_loss_pars_metric_inp_testdat(obj, par, testdata4paropt_s, testdata4paropt_f)[0]
         
         argmin,minval,numevals = HMIN.minimise_Shubert(fct,[parmin[0],parmax[0]],L,errthresh,maxevals)
@@ -610,7 +610,7 @@ def KI_optimise_pars_metric_inp_testdat_old_(obj, parmin, parmax, testdata4parop
     if L == -999.123:
         L = obj.L
         
-    def fct(par):
+    def fct(par, obj = obj, testdata4paropt_s = testdata4paropt_s, testdata4paropt_f = testdata4paropt_f):
         return KI_fct_loss_pars_metric_inp_testdat(obj,par,testdata4paropt_s,testdata4paropt_f)
     
     optobj = HMIN.HMIN_multidim(parmin, parmax, fct, L)

@@ -11,9 +11,9 @@ import HPA
 # ----- Begin: Parameters of the test run -----------
 
 def f(x):
-    return np.sin(abs(x[0] - 0.5)) + 1 #function defined so that only the first input dimension matters
+    return np.sin(abs(x[:,0] - 0.5)) + 1 #function defined so that only the first input dimension matters
 
-L=1.
+L = 1.
 cond_dat_size = 5
 partrain_dat_size = 5
 epsilon = 0. #obs noise
@@ -51,7 +51,6 @@ D_cond_full = HPA.sample(np.vstack((s_cond, s_test_partrain)),
 # ----- End: data generation -----------
 
 # ------------ creation of the KI learner based on D_cond_full and false frequency guess:
-
 
 ki0 = HPA.HoelParEst(L, hoelexp, D_cond_full, HPA.vecmetric_maxnorm_ARD,
                      HPA.vecmetric_2norm, 0., par_init_guess, np.array([1.]))

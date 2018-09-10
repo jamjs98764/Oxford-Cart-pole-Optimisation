@@ -7,7 +7,7 @@ Created on Tue Sep  4 15:57:57 2018
 import numpy as np
 import HMIN 
 
-d = 6
+d = 2
 a = -1. * np.ones(d)
 b = 2. * np.ones(d)
 L = 1.
@@ -18,14 +18,7 @@ minbnd = 1
 def fct(x):
     return np.amax(abs(x)) + 1
 
-
-hopt2 = {}
-hopt2['a'] = a # vector, I = {x : a <= x <= b componentwise}
-hopt2['b'] = b # vector
-hopt2['fct'] = fct # Function
-hopt2['L'] = L # Hoelder constant est
-hopt2['minbnd'] = minbnd
-
 hopt2 = HMIN.HMIN_multidim(a,b,fct,L,p)
+global t
 
-argmin, m, i, counter = HMIN.minimiseUntilErrthresh_(hopt2, 0.01)
+argmin, m, i, counter = HMIN.minimiseUntilErrthresh_(hopt2, 0.005)
